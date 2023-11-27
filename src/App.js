@@ -4,9 +4,12 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 function App() {
   const [selectedClass, setSelectedClass] = useState("");
-  const [timetable, setTimetable] = useState(null);
-  const [groups, setGroups] = useState(null);
+  const [result, setResult] = useState(null);
   const [selectOptionsHTML, setSelectOptionsHTML] = useState("");
+  const [selectElements, setSelectElements] = useState([]);
+  const [checkboxElements, setCheckboxElements] = useState([]);
+  const [showGroupsForm, setShowGroupsForm] = useState(false);
+  let announcementText = "";
 
   const handleSelectChange = (e) => {
     setSelectedClass(e.target.value);
@@ -24,7 +27,8 @@ function App() {
 
         const selectElement = doc.getElementById("selectedClass");
         if (selectElement) {
-          setSelectOptionsHTML(selectElement.innerHTML);
+          const selectHTML = selectElement.innerHTML;
+          setSelectOptionsHTML(selectHTML);
         }
       } catch (error) {
         console.error("Failed to fetch class options:", error);
@@ -49,38 +53,124 @@ function App() {
 
       if (response.ok) {
         const data = await response.json();
-        setTimetable(data);
-        console.log(data);
-      } else {
-        console.error("Failed to fetch timetable data");
+        const groups = [];
+
+        for (const day of data.timetable) {
+          for (const lessons of Object.values(day)) {
+            for (const lesson of lessons) {
+              const group = lesson.group;
+              if (group) {
+                groups.push(group);
+              }
+            }
+          }
+        }
+        let uniqueGroups = [...new Set(groups)];
+        const groupsText = uniqueGroups.toString();
+
+        const checkboxes = [];
+        let selects = [];
+        const option = [];
+
+        uniqueGroups.forEach((group) => {
+          const option = [];
+          const letter = (group.match(/[a-zA-Z]+/) || [""])[0];
+
+          const regex = new RegExp(`${letter}\\d`, "g");
+          let selectsArray = [...groupsText.matchAll(regex)].map(
+            (match) => match[0]
+          );
+
+          selectsArray = selectsArray.sort();
+
+          selectsArray.forEach((groupFinal) => {
+            option.push(<option value={groupFinal}>{groupFinal}</option>);
+          });
+
+          if (option.length === 1) {
+            checkboxes.push(
+              <Col key={group}>
+                <Form.Check id={group} label={group} name={group} />
+              </Col>
+            );
+          } else {
+            const selectId = letter;
+
+            const push = (
+              <Col key={selectId}>
+                <label htmlFor={selectId}>Vyber skupinu...</label>
+                <Form.Select id={selectId} defaultValue="" name={selectId}>
+                  {option}
+                </Form.Select>
+              </Col>
+            );
+
+            if (
+              !selects.some(
+                (existingSelect) => existingSelect.props.id === selectId
+              )
+            ) {
+              selects.push(push);
+            }
+          }
+        });
+
+        selects = selects.filter(
+          (select, index, array) =>
+            array.findIndex((s) => s.key === select.key) === index
+        );
+
+        setResult(data);
+        setSelectElements(selects);
+        setCheckboxElements(checkboxes);
       }
+
+      setShowGroupsForm(true);
     } catch (error) {
       console.error(error);
     }
   };
 
-  const fetchGroups = async () => {
-    try {
-      const response = await fetch(
-        "/api/fetch-groups",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ class: selectedClass }),
-        }
-      );
+  const handleFilterTimetable = (e) => {
+    e.preventDefault();
 
-      if (response.ok) {
-        const data = await response.json();
-        setGroups(data);
+    let selectedGroups = document.querySelectorAll(
+      ".form select, .form input[type='checkbox']:checked"
+    );
+    selectedGroups = Array.from(selectedGroups).map((group) => group.value);
+
+    const filteredTimetable = result.timetable.map((day) => {
+      const filteredLessons = {};
+      console.log(filteredLessons);
+
+      if (filteredLessons.length === 0) {
+        return filteredLessons;
       } else {
-        console.error("Failed to fetch groups");
+        for (const [key, lessons] of Object.entries(day)) {
+          const filteredGroupLessons = lessons.filter((lesson) => {
+            const lessonGroup = lesson.group;
+
+            return (
+              !lessonGroup ||
+              lessonGroup === null ||
+              selectedGroups.includes(lessonGroup)
+            );
+          });
+
+          if (filteredGroupLessons.length > 0) {
+            filteredLessons[key] = filteredGroupLessons;
+          } else {
+            // If the day has no lessons, keep it as is
+            filteredLessons[key] = lessons;
+          }
+        }
+
+        announcementText = "Timetable filtered succesfully.";
+        return filteredLessons;
       }
-    } catch (error) {
-      console.error(error);
-    }
+    });
+
+    setResult({ timetable: filteredTimetable });
   };
 
   return (
@@ -98,21 +188,24 @@ function App() {
           <Col>
             <Button onClick={fetchTimetable}>Fetch Timetable</Button>
           </Col>
+        </Row>
+        <Form onSubmit={handleFilterTimetable}>
+          <Row className="d-flex align-items-center form">
+            {selectElements}
+            {checkboxElements}
+            <Col>
+              <Button type="submit">Filter Timetable</Button>
+            </Col>
+          </Row>
+        </Form>
+        <Row>
           <Col>
-            <Button onClick={fetchGroups}>Fetch Groups</Button>
+            <p>4.H má posraný skupiny sorry</p>
+            <p id={announcementText}></p>
           </Col>
         </Row>
       </div>
-      <div>
-        <div>
-          <h3>Groups:</h3>
-          <pre>{JSON.stringify(groups, null, 2)}</pre>
-        </div>
-        <div>
-          <h3>Complete Timetable:</h3>
-          <pre>{JSON.stringify(timetable, null, 2)}</pre>
-        </div>
-      </div>
+      {result && <pre className="my-3">{JSON.stringify(result, null, 2)}</pre>}
     </div>
   );
 }

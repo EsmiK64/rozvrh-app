@@ -63,9 +63,10 @@ app.post("/api/fetch-timetable", async (req, res) => {
               let lessonTime;
 
               if (lessonParts) {
-                lessonNumber = lessonParts[0];
-                lessonTime = lessonParts[1];
+                lessonNumber = lessonParts[1];
+                lessonTime = lessonParts[2];
               }
+
               return {
                 type: parsedData.type,
                 subject,
@@ -100,7 +101,6 @@ app.post("/api/fetch-timetable", async (req, res) => {
             return "Invalid JSON";
           }
         });
-
         daysData.push({ [dayText]: dayItemsData });
       });
 
@@ -109,60 +109,6 @@ app.post("/api/fetch-timetable", async (req, res) => {
       res.status(404).json({
         error: 'No divs with class "bk-timetable-row" found in the HTML.',
       });
-    }
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to fetch data" });
-  }
-});
-
-app.post("/api/fetch-groups", async (req, res) => {
-  const classInput = req.body.class;
-
-  try {
-    const response = await fetch(
-      `https://bakalari.spse.cz/bakaweb/Timetable/Public/Permanent/Class/${classInput}`
-    );
-
-    const html = await response.text();
-    const { document } = new JSDOM(html).window;
-
-    const timetableRowDivs = document.querySelectorAll(".bk-timetable-row");
-
-    if (timetableRowDivs.length > 0) {
-      const timetable = {};
-
-      Array.from(timetableRowDivs).forEach((row) => {
-        const dayItems = row.querySelectorAll(".day-item");
-        const dayData = {};
-
-        Array.from(dayItems).forEach((item) => {
-          const dataDetail = item.getAttribute("data-detail");
-          try {
-            const parsedData = JSON.parse(dataDetail);
-
-            if (parsedData.group) {
-              const groupName = parsedData.group;
-              const groupLetter = groupName.match(/[A-Z]+\d+/);
-              if (groupLetter) {
-                const letter = groupLetter[0];
-                if (!dayData[letter]) {
-                  dayData[letter] = [];
-                }
-                if (!dayData[letter].includes(groupName)) {
-                  dayData[letter].push(groupName);
-                }
-              }
-            }
-          } catch (error) {
-            // Handle JSON parse error
-          }
-        });
-
-        timetable[row.getAttribute("data-day")] = dayData;
-      });
-
-      res.json({ timetable });
     }
   } catch (error) {
     console.error(error);
