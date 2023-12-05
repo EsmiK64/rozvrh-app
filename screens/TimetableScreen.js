@@ -26,10 +26,39 @@ const TimetableScreen = () => {
           );
           const data = await response.json();
           console.log('Fetched data:', data);
-    
-          // Check if the timetable is an array before setting state
+
+          const selectedGroups = await AsyncStorage.getItem('groupsData');
+          console.log(selectedGroups);
+
           if (Array.isArray(data.timetable)) {
-            setTimetable(data.timetable);
+            const filteredTimetable = data.timetable.map((day) => {
+              const filteredLessons = {};
+
+              if (filteredLessons.length === 0) {
+                return filteredLessons;
+              } else {
+                for (const [key, lessons] of Object.entries(day)) {
+                  const filteredGroupLessons = lessons.filter((lesson) => {
+                    const lessonGroup = lesson.group;
+                    console.log(lesson.group);
+                    return (
+                      !lessonGroup ||
+                      lessonGroup === null ||
+                      selectedGroups.includes(lessonGroup)
+                    );
+                  });
+
+                  if (filteredGroupLessons.length > 0) {
+                    filteredLessons[key] = filteredGroupLessons;
+                  } else {
+                    filteredLessons[key] = lessons;
+                  }
+                }
+                return filteredLessons;
+              }
+            });
+
+            setTimetable(filteredTimetable);
           } else {
             console.error('Timetable data is not an array:', data.timetable);
           }
@@ -41,18 +70,18 @@ const TimetableScreen = () => {
         return; // Stop execution if there's an error fetching saved class
       }
     };
-  
+
     fetchData();
-  }, []);  
+  }, []);
 
   const renderItem = ({ item }) => {
     const renderDay = (day) => {
       const lessons = item[day];
-      
+
       if (!lessons || !Array.isArray(lessons)) {
         return null;
       }
-  
+
       return (
         <View key={day} style={styles.gridItem}>
           {lessons.map((lesson, index) => (
@@ -65,7 +94,7 @@ const TimetableScreen = () => {
         </View>
       );
     };
-  
+
     return (
       <>
         {renderDay('po')}
