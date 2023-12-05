@@ -33,7 +33,7 @@ const SelectScreen = ({ navigation }) => {
       await AsyncStorage.setItem('selectedClass', selectedClass);
       console.log(selectedClass);
       console.log(await AsyncStorage.getItem('selectedClass'));
-      navigation.navigate('Timetable');
+      navigation.navigate('GroupSelect');
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -47,7 +47,7 @@ const SelectScreen = ({ navigation }) => {
         dangerouslySetInnerHTML={{ __html: selectOptionsHTML }}
       >
       </Picker>
-      <Button title="Generate Timetable" onPress={saveData} />
+      <Button title="Continue" onPress={saveData} />
     </View>
   );
 };
