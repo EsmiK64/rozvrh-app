@@ -1,32 +1,33 @@
 import React, { useEffect, useState } from 'react';
-import { View, Picker, Button } from 'react-native';
+import { View, Button } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { Text } from '@rneui/themed';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SelectScreen = ({ navigation }) => {
-  const [selectOptionsHTML, setSelectOptionsHTML] = useState('');
+  const [selectOptions, setSelectOptions] = useState([]);
   const [selectedClass, setSelectedClass] = useState('');
+  const [isFormLoaded, setIsFormLoaded] = useState(false);
 
   useEffect(() => {
     const fetchClassOptions = async () => {
       try {
-        const response = await fetch(
-          'https://bakalari.spse.cz/bakaweb/Timetable/Public/'
-        );
-        const html = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        const selectElement = doc.getElementById('selectedClass');
-        if (selectElement) {
-          setSelectOptionsHTML(selectElement.innerHTML);
+        const response = await fetch("https://rozvrh-bakalari.vercel.app/api/fetch-classes", { method: "POST" });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch class options. Status: ${response.status}`);
         }
+
+        const data = await response.json();
+        setSelectOptions(data);
+        setIsFormLoaded(true);
       } catch (error) {
-        console.error('Failed to fetch class options:', error);
+        console.error('Error:', error);
       }
     };
 
     fetchClassOptions();
   }, []);
+
 
   const saveData = async () => {
     try {
@@ -41,13 +42,30 @@ const SelectScreen = ({ navigation }) => {
 
   return (
     <View>
-      <Picker
-        selectedValue={selectedClass}
-        onValueChange={(itemValue) => setSelectedClass(itemValue)}
-        dangerouslySetInnerHTML={{ __html: selectOptionsHTML }}
-      >
-      </Picker>
-      <Button title="Continue" onPress={saveData} />
+      {isFormLoaded ? (
+        <View>
+          {Array.isArray(selectOptions) && selectOptions.length > 0 ? (
+            <Picker
+              selectedValue={selectedClass}
+              onValueChange={(itemValue) =>
+                setSelectedClass(itemValue)
+              }
+            >
+              {selectOptions.map((option, index) => (
+                <Picker.Item key={index} label={option.label} value={option.value} />
+              ))}
+            </Picker>
+          ) : (
+            <Text>No options available</Text>
+          )}
+          <Button title="Continue" onPress={saveData} />
+        </View>
+      ) : (
+        <View>
+          <Text>Loading</Text>
+        </View>
+      )}
+
     </View>
   );
 };

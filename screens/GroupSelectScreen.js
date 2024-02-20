@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Button, Picker, Stack } from 'react-native';
+import { View, Button } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CheckBox } from '@rneui/themed';
 
@@ -29,7 +30,7 @@ const SelectScreen = ({ navigation }) => {
     });
     console.log(uniqueFormData);
     setGroupData(uniqueFormData);
-  };  
+  };
 
   useEffect(() => {
     console.log("test log")
@@ -86,19 +87,18 @@ const SelectScreen = ({ navigation }) => {
             console.log(selectsArray);
 
             selectsArray.forEach((groupFinal) => {
-              option.push(<option value={groupFinal}>{groupFinal}</option>);
+              option.push(<Picker.Item value={groupFinal} label={groupFinal} />);
             });
 
             if (option.length === 1) {
               checkboxes.push(
-                <CheckBox id={group} label={group} name={group} onValueChange={(value) => handleInputChange(group, value)}/>
+                <CheckBox id={group} label={group} name={group} onValueChange={(value) => handleInputChange(group, value)} />
               );
             } else {
               const selectId = letter;
 
               const push = (
                 <Picker id={selectId} defaultValue="" key={selectId} onValueChange={(value) => handleInputChange(selectId, value)}>
-                  <option></option>
                   {option}
                 </Picker>
               );
@@ -136,7 +136,7 @@ const SelectScreen = ({ navigation }) => {
       await AsyncStorage.setItem('groupsData', JSON.stringify(groupData));
       navigation.navigate('Timetable');
     } catch (error) {
-      console.error('Error saving data:', error); 
+      console.error('Error saving data:', error);
     }
   };
 

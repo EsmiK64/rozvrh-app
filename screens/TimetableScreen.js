@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Card } from '@rneui/themed';
 
 const TimetableScreen = () => {
   const [timetable, setTimetable] = useState([]);
@@ -86,9 +87,11 @@ const TimetableScreen = () => {
         <View key={day} style={styles.gridItem}>
           {lessons.map((lesson, index) => (
             <View key={index}>
-              <Text>{lesson.subject || 'No subject'}</Text>
-              <Text>{lesson.room || 'No room'}</Text>
-              <Text>{lesson.teacher || 'No teacher'}</Text>
+              <Card>
+                <Text>{lesson.subject || 'No subject'}</Text>
+                <Text>{lesson.room || 'No room'}</Text>
+                <Text>{lesson.teacher || 'No teacher'}</Text>
+              </Card>
             </View>
           ))}
         </View>
