@@ -1,0 +1,13 @@
+{
+    "build": {
+      "local": {
+        "android": {
+          "buildType": "apk",
+          "distribution": "internal",
+          "developmentClient": false
+        }
+      },
+      "production": {}
+    }
+  }
+  

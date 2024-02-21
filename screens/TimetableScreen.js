@@ -22,7 +22,7 @@ const TimetableScreen = () => {
               headers: {
                 "Content-Type": "application/json",
               },
-              body: JSON.stringify({ class: selectedClass }), // Use savedClass here
+              body: JSON.stringify({ class: selectedClass }),
             }
           );
           const data = await response.json();
@@ -88,12 +88,21 @@ const TimetableScreen = () => {
           {lessons.map((lesson, index) => (
             <View key={index}>
               <Card>
-                <Text>{lesson.subject || 'No subject'}</Text>
-                <Text>{lesson.room || 'No room'}</Text>
-                <Text>{lesson.teacher || 'No teacher'}</Text>
+                {lesson.type === 'atom' ? (
+                  <>
+                    <Text>{lesson.subject || 'Error fetching subject.'}</Text>
+                    <Text>{lesson.room || 'Error fetching class.'}</Text>
+                    <Text>{lesson.teacher || 'Error fetching teacher.'}</Text>
+                  </>
+                ) : (
+                  <View style={{ backgroundColor: 'red' }}>
+                    <Text>Removed or absent</Text>
+                  </View>
+                )}
               </Card>
             </View>
           ))}
+
         </View>
       );
     };

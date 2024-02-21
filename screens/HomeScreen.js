@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Button } from '@rneui/base';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -24,6 +24,7 @@ const HomeScreen = ({ navigation }) => {
 
   return (
     <View>
+      <Text style={styles.heading}>Rozvrh pro SPECIÁLNÍ ŠKOLU PRO SPECIÁLNÍ DĚTI</Text>
       <Button
         title="Go to Select"
         onPress={() => navigation.navigate('Select')}
@@ -31,5 +32,12 @@ const HomeScreen = ({ navigation }) => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  heading: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+});
 
 export default HomeScreen;
