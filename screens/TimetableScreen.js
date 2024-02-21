@@ -1,20 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Card } from '@rneui/themed';
+import React, { useState, useEffect } from "react";
+import { View, Text, FlatList, StyleSheet } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Card } from "@rneui/themed";
 
 const TimetableScreen = () => {
   const [timetable, setTimetable] = useState([]);
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClass, setSelectedClass] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const selectedClass = await AsyncStorage.getItem('selectedClass');
-        console.log(selectedClass);
+        const selectedClass = await AsyncStorage.getItem("selectedClass");
         setSelectedClass(selectedClass);
         try {
-          console.log(selectedClass)
           const response = await fetch(
             "https://rozvrh-bakalari.vercel.app/api/fetch-timetable",
             {
@@ -26,10 +24,8 @@ const TimetableScreen = () => {
             }
           );
           const data = await response.json();
-          console.log('Fetched data:', data);
 
-          const selectedGroups = await AsyncStorage.getItem('groupsData');
-          console.log(selectedGroups);
+          const selectedGroups = await AsyncStorage.getItem("groupsData");
 
           if (Array.isArray(data.timetable)) {
             const filteredTimetable = data.timetable.map((day) => {
@@ -41,7 +37,6 @@ const TimetableScreen = () => {
                 for (const [key, lessons] of Object.entries(day)) {
                   const filteredGroupLessons = lessons.filter((lesson) => {
                     const lessonGroup = lesson.group;
-                    console.log(lesson.group);
                     return (
                       !lessonGroup ||
                       lessonGroup === null ||
@@ -61,14 +56,14 @@ const TimetableScreen = () => {
 
             setTimetable(filteredTimetable);
           } else {
-            console.error('Timetable data is not an array:', data.timetable);
+            console.error("Timetable data is not an array:", data.timetable);
           }
         } catch (error) {
-          console.error('Error fetching data:', error);
+          console.error("Error fetching data:", error);
         }
       } catch (error) {
-        console.error('Error fetching saved class:', error);
-        return; // Stop execution if there's an error fetching saved class
+        console.error("Error fetching saved class:", error);
+        return;
       }
     };
 
@@ -85,35 +80,119 @@ const TimetableScreen = () => {
 
       return (
         <View key={day} style={styles.gridItem}>
+          <Text
+            style={{
+              width: "100%",
+              backgroundColor: "gray",
+              padding: 10,
+              color: "white",
+            }}
+          >
+            {day}
+          </Text>
           {lessons.map((lesson, index) => (
-            <View key={index}>
-              <Card>
-                {lesson.type === 'atom' ? (
-                  <>
-                    <Text>{lesson.subject || 'Error fetching subject.'}</Text>
-                    <Text>{lesson.room || 'Error fetching class.'}</Text>
-                    <Text>{lesson.teacher || 'Error fetching teacher.'}</Text>
-                  </>
-                ) : (
-                  <View style={{ backgroundColor: 'red' }}>
-                    <Text>Removed or absent</Text>
+            <View key={index} style={styles.lesson}>
+              {lesson.type === "atom" ? (
+                <>
+                  <Card
+                    containerStyle={[
+                      styles.lessonNumber,
+                      lesson.changeinfo !== "" ? styles.removedCard : null,
+                    ]}
+                  >
+                    <Text>{lesson.lessonNumber}</Text>
+                  </Card>
+                  <Card
+                    containerStyle={[
+                      styles.lessonCard,
+                      lesson.changeinfo !== "" ? styles.removedCard : null,
+                    ]}
+                  >
+                    <View style={styles.sideToSide}>
+                      <View>
+                        <Text
+                          style={{
+                            fontSize: 20,
+                            fontWeight: "bold",
+                            maxWidth: 200,
+                          }}
+                        >
+                          {lesson.subject || "Error fetching subject."}
+                        </Text>
+                        <Text>
+                          {lesson.teacher || "Error fetching teacher."}
+                        </Text>
+                        {lesson.changeinfo !== "" ? (
+                          <Text>{lesson.changeinfo}</Text>
+                        ) : null}
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "column",
+                          justifyContent: "center",
+                          alignItems: "flex-end",
+                        }}
+                      >
+                        <Text>{lesson.room || "Error fetching class."}</Text>
+                        <Text>
+                          {lesson.lessonTime || "Error fetching time."}
+                        </Text>
+                        {lesson.group !== "" ? (
+                          <Text style={{fontVariant: "italic"}}>{lesson.group}</Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  </Card>
+                </>
+              ) : lesson.type === "removed" ? (
+                <>
+                  <Card
+                    containerStyle={[styles.lessonNumber, styles.removedCard]}
+                  >
+                    <Text>{lesson.lessonNumber}</Text>
+                  </Card>
+                  <Card
+                    containerStyle={[styles.lessonCard, styles.removedCard]}
+                  >
+                    <View style={styles.sideToSide}>
+                      <View>
+                        <Text style={{ fontSize: 20, fontWeight: "bold", maxWidth: 200 }}>
+                          {lesson.removedInfo}
+                        </Text>
+                      </View>
+                      <View
+                        style={{
+                          flexDirection: "column",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Text>
+                          {lesson.lessonTime || "Error fetching time."}
+                        </Text>
+                      </View>
+                    </View>
+                  </Card>
+                </>
+              ) : (
+                <Card containerStyle={[styles.lessonCard, styles.absentCard]}>
+                  <View style={styles.sideToSide}>
+                    <Text>{lesson.absentInfo}</Text>
                   </View>
-                )}
-              </Card>
+                </Card>
+              )}
             </View>
           ))}
-
         </View>
       );
     };
 
     return (
       <>
-        {renderDay('po')}
-        {renderDay('út')}
-        {renderDay('st')}
-        {renderDay('čt')}
-        {renderDay('pá')}
+        {renderDay("Pondělí")}
+        {renderDay("Úterý")}
+        {renderDay("Středa")}
+        {renderDay("Čtvrtek")}
+        {renderDay("Pátek")}
       </>
     );
   };
@@ -138,11 +217,39 @@ const TimetableScreen = () => {
 
 const styles = StyleSheet.create({
   gridItem: {
-    flexDirection: 'column',
-    justifyContent: 'space-between',
+    flexDirection: "column",
     padding: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    borderBottomColor: "#ccc",
+  },
+  lesson: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    gap: 0,
+    padding: 10
+  },
+  lessonCard: {
+    borderRadius: 10,
+    width: "85%",
+    margin: 0,
+  },
+  removedCard: {
+    backgroundColor: "#fa938c",
+  },
+  absentCard: {
+    backgroundColor: "#88cc88",
+  },
+  lessonNumber: {
+    height: "100%",
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    margin: 0,
+  },
+  sideToSide: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 });
 
