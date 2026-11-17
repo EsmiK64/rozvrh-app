@@ -18,12 +18,9 @@ export function buildGithubIssueUrl({ title, body } = {}) {
   return `${GITHUB_NEW_ISSUE_URL}${params.length ? `?${params.join("&")}` : ""}`;
 }
 
-export function openErrorEmail(errorMessage) {
+export function openErrorEmail() {
   const url = buildMailtoUrl({
     subject: "Rozvrh – hlášení chyby / výpadku",
-    body: errorMessage
-      ? `Dobrý den,\n\nv aplikaci Rozvrh došlo k chybě:\n\n${errorMessage}\n`
-      : "Dobrý den,\n\nchci nahlásit problém v aplikaci Rozvrh:\n\n",
   });
   return Linking.openURL(url).catch((err) =>
     console.error("Failed to open email client:", err)
