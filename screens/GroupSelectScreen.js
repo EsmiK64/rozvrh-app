@@ -1,156 +1,243 @@
-import React, { useEffect, useState } from 'react';
-import { View, Button } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CheckBox } from '@rneui/themed';
+import React, { useCallback, useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { bakalariClient } from "../api/client";
+import { ExpressiveChip } from "../components/ExpressiveChip";
+import { ExpressivePressable } from "../components/ExpressivePressable";
+import { SlidingTabs } from "../components/SlidingTabs";
+import { ErrorView, LoadingView } from "../components/StateViews";
+import { useSettings } from "../context/SettingsContext";
+import { RADII, SPACING } from "../theme";
+import { extractGroupOptions } from "../utils/groups";
+import { getSavedSelection, saveSelectedGroups } from "../utils/storage";
 
+const GroupSelectScreen = ({ navigation }) => {
+  const { colors } = useSettings();
+  const [classLabel, setClassLabel] = useState(null);
+  const [choices, setChoices] = useState([]);
+  const [toggles, setToggles] = useState([]);
+  const [selectedChoices, setSelectedChoices] = useState({});
+  const [selectedToggles, setSelectedToggles] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
 
-const SelectScreen = ({ navigation }) => {
-  const [selectElements, setSelectElements] = useState([]);
-  const [checkboxElements, setCheckboxElements] = useState([]);
-  const [groupData, setGroupData] = useState([]);
+  const loadGroups = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const saved = await getSavedSelection();
+      if (!saved.classId) {
+        navigation.replace("Select");
+        return;
+      }
 
-  const formData = [];
-
-  const handleInputChange = (fieldName, value) => {
-    if (formData.length > 0) {
-      formData.forEach((group, index) => {
-        const letter = (group.match(/[a-zA-Z]+/) || [""])[0];
-        if (letter === fieldName) {
-          formData[index] = value;
-        } else {
-          formData.push(value);
-        }
+      setClassLabel(saved.classLabel || saved.classId);
+      const timetable = await bakalariClient.getTimetable("class", saved.classId, {
+        term: "permanent",
       });
-    } else {
-      formData.push(value);
+      const extracted = extractGroupOptions(timetable.days);
+      setChoices(extracted.choices);
+      setToggles(extracted.toggles);
+
+      const savedSet = new Set(saved.groups || []);
+      const initialChoices = {};
+      for (const group of extracted.choices) {
+        const match = group.options.find((opt) => savedSet.has(opt));
+        initialChoices[group.id] = match || group.options[0];
+      }
+      setSelectedChoices(initialChoices);
+
+      const initialToggles = {};
+      for (const group of extracted.toggles) {
+        initialToggles[group.id] = savedSet.has(group.id);
+      }
+      setSelectedToggles(initialToggles);
+    } catch (err) {
+      setError(err.message || "Nepodařilo se načíst skupiny třídy.");
+    } finally {
+      setLoading(false);
     }
-    const uniqueFormData = formData.filter((value, index, self) => {
-      return self.indexOf(value) === index;
-    });
-    console.log(uniqueFormData);
-    setGroupData(uniqueFormData);
-  };
+  }, [navigation]);
 
   useEffect(() => {
-    console.log("test log")
-    const fetchTimetable = async () => {
-      try {
-        const selectedClass = await AsyncStorage.getItem('selectedClass');
-        console.log(selectedClass);
-        const response = await fetch(
-          "https://rozvrh-bakalari.vercel.app/api/fetch-timetable",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ class: selectedClass }),
-          }
-        );
+    loadGroups();
+  }, [loadGroups]);
 
-        if (response.ok) {
-          const data = await response.json();
-          const groups = [];
+  const handleSave = async () => {
+    const finalGroups = [
+      ...Object.values(selectedChoices).filter(Boolean),
+      ...Object.entries(selectedToggles)
+        .filter(([, enabled]) => enabled)
+        .map(([id]) => id),
+    ];
 
-          for (const day of data.timetable) {
-            for (const lessons of Object.values(day)) {
-              for (const lesson of lessons) {
-                const group = lesson.group;
-                if (group) {
-                  groups.push(group);
-                }
-              }
-            }
-          }
-          let uniqueGroups = [...new Set(groups)];
-          const groupsText = uniqueGroups.toString();
-
-          const checkboxes = [];
-          let selects = [];
-
-          uniqueGroups.forEach((group) => {
-            const option = [];
-            const letter = (group.match(/[a-zA-Z]+/) || [""])[0];
-
-            const regex = new RegExp(`${letter}\\d`, "g");
-            let selectsArray = [...groupsText.matchAll(regex)].map(
-              (match) => match[0]
-            );
-
-            if (group == "CM" || group == "DV") {
-              selectsArray.push(group);
-            }
-
-            selectsArray = selectsArray.sort();
-
-            console.log(selectsArray);
-
-            selectsArray.forEach((groupFinal) => {
-              option.push(<Picker.Item value={groupFinal} label={groupFinal} />);
-            });
-
-            if (option.length === 1) {
-              checkboxes.push(
-                <CheckBox id={group} label={group} name={group} onValueChange={(value) => handleInputChange(group, value)} />
-              );
-            } else {
-              const selectId = letter;
-
-              const push = (
-                <Picker id={selectId} defaultValue="" key={selectId} onValueChange={(value) => handleInputChange(selectId, value)}>
-                  {option}
-                </Picker>
-              );
-
-              console.log(push);
-
-              if (
-                !selects.some(
-                  (existingSelect) => existingSelect.props.id === selectId
-                )
-              ) {
-                selects.push(push);
-              }
-            }
-          });
-          selects = selects.filter(
-            (select, index, array) =>
-              array.findIndex((s) => s.key === select.key) === index
-          );
-          setSelectElements(selects);
-          setCheckboxElements(checkboxes);
-        } else {
-          console.log("fuckup");
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    fetchTimetable();
-  }, []);
-
-  const saveData = async () => {
+    setSaveError(null);
     try {
-      await AsyncStorage.setItem('groupsData', JSON.stringify(groupData));
-      navigation.navigate('Timetable');
-    } catch (error) {
-      console.error('Error saving data:', error);
+      await saveSelectedGroups(finalGroups);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Timetable" }],
+      });
+    } catch (err) {
+      setSaveError(err.message || "Nepodařilo se uložit vybrané skupiny.");
     }
   };
 
+  if (loading) {
+    return <LoadingView message="Zjišťuji skupiny v rozvrhu..." />;
+  }
+
+  if (error) {
+    return <ErrorView message={error} onRetry={loadGroups} />;
+  }
+
+  const hasAnyGroups = choices.length > 0 || toggles.length > 0;
+
   return (
-    <View>
-      <View>
-        {selectElements}
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={["bottom"]}
+    >
+      <ScrollView contentContainerStyle={styles.content}>
+        <Text style={[styles.heading, { color: colors.text }]}>
+          Skupiny pro {classLabel || "vybranou třídu"}
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+          {hasAnyGroups
+            ? "Vyberte své dělení třídy, aby se zobrazovaly jen vaše hodiny."
+            : "V rozvrhu této třídy nejsou žádné dělené skupiny."}
+        </Text>
+
+        {choices.map((group) => (
+          <View
+            key={group.id}
+            style={[
+              styles.section,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Skupina {group.id}
+            </Text>
+            <SlidingTabs
+              options={group.options.map((opt) => ({ key: opt, label: opt }))}
+              selectedKey={selectedChoices[group.id]}
+              onSelect={(option) =>
+                setSelectedChoices((prev) => ({
+                  ...prev,
+                  [group.id]: option,
+                }))
+              }
+            />
+          </View>
+        ))}
+
+        {toggles.length > 0 ? (
+          <View
+            style={[
+              styles.section,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Volitelné / další skupiny
+            </Text>
+            <View style={styles.pillRow}>
+              {toggles.map((group) => (
+                <ExpressiveChip
+                  key={group.id}
+                  label={group.id}
+                  showCheck
+                  active={Boolean(selectedToggles[group.id])}
+                  onPress={() =>
+                    setSelectedToggles((prev) => ({
+                      ...prev,
+                      [group.id]: !prev[group.id],
+                    }))
+                  }
+                />
+              ))}
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <View
+        style={[
+          styles.footer,
+          { backgroundColor: colors.surface, borderTopColor: colors.border },
+        ]}
+      >
+        {saveError ? (
+          <Text style={[styles.saveError, { color: colors.removedText }]}>
+            {saveError}
+          </Text>
+        ) : null}
+        <ExpressivePressable
+          style={[styles.saveButton, { backgroundColor: colors.primary }]}
+          onPress={handleSave}
+        >
+          <Text style={[styles.saveText, { color: colors.white }]}>
+            Zobrazit rozvrh
+          </Text>
+        </ExpressivePressable>
       </View>
-      <View>
-        {checkboxElements}
-      </View>
-      <Button title="Generate Timetable" onPress={saveData} />
-    </View>
+    </SafeAreaView>
   );
 };
 
-export default SelectScreen;
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    padding: SPACING.lg,
+  },
+  heading: {
+    fontSize: 22,
+    fontWeight: "800",
+  },
+  subtitle: {
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  section: {
+    borderRadius: RADII.md,
+    padding: SPACING.lg,
+    marginBottom: SPACING.md,
+    borderWidth: 1,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: SPACING.md,
+  },
+  pillRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: SPACING.sm,
+  },
+  footer: {
+    padding: SPACING.lg,
+    borderTopWidth: 1,
+  },
+  saveButton: {
+    borderRadius: RADII.md,
+    paddingVertical: SPACING.md + 2,
+    alignItems: "center",
+  },
+  saveText: {
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  saveError: {
+    fontSize: 13,
+    marginBottom: SPACING.sm,
+    textAlign: "center",
+  },
+});
+
+export default GroupSelectScreen;
