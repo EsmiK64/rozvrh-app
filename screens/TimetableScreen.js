@@ -240,7 +240,7 @@ const TimetableScreen = ({ navigation }) => {
       if (state.dismissedId !== remote.id) {
         setAnnouncement(remote);
       }
-      if (settings.devNotifications && state.seenId !== remote.id) {
+      if (state.seenId !== remote.id) {
         await markAnnouncementSeen(remote.id);
         await sendDevAnnouncementNotification(remote);
       }
@@ -248,7 +248,7 @@ const TimetableScreen = ({ navigation }) => {
     return () => {
       active = false;
     };
-  }, [settings.devNotifications]);
+  }, []);
 
   const timeMarker = useMemo(
     () =>

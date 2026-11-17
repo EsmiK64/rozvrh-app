@@ -192,9 +192,7 @@ export function AppearanceControls({
 
 export function NotificationControls({
   lessonReminders,
-  devNotifications,
   onLessonRemindersChange,
-  onDevNotificationsChange,
 }) {
   const { colors } = useSettings();
   return (
@@ -204,13 +202,6 @@ export function NotificationControls({
         description="Upozorní na konci předchozí hodiny, co a v jaké učebně následuje."
         value={lessonReminders}
         onValueChange={onLessonRemindersChange}
-        colors={colors}
-      />
-      <SettingSwitchRow
-        title="Informace od vývojáře"
-        description="Upozorní na výpadky Bakalářů nebo důležité zprávy k aplikaci."
-        value={devNotifications}
-        onValueChange={onDevNotificationsChange}
         colors={colors}
       />
     </View>

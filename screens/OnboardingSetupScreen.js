@@ -188,11 +188,7 @@ const OnboardingSetupScreen = ({ navigation }) => {
             </Text>
             <NotificationControls
               lessonReminders={settings.lessonReminders}
-              devNotifications={settings.devNotifications}
               onLessonRemindersChange={handleEnableLessonReminders}
-              onDevNotificationsChange={(val) =>
-                updateSetting("devNotifications", val)
-              }
             />
             <ExpressivePressable
               style={[

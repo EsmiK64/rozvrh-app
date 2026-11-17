@@ -80,13 +80,14 @@ export async function syncLessonReminders(
   }
 }
 
-/** Fires an immediate local notification for a developer announcement. */
+/** Fires an immediate local notification for a developer announcement if OS permission is already granted. */
 export async function sendDevAnnouncementNotification(announcement) {
   if (!announcement) return;
   try {
-    const granted = await ensureChannelsAndPermission();
-    if (!granted) return;
+    const existing = await Notifications.getPermissionsAsync();
+    if (existing.status !== "granted") return;
 
+    await ensureChannelsAndPermission();
     await Notifications.scheduleNotificationAsync({
       content: {
         title: announcement.title,

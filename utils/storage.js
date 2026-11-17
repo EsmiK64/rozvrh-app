@@ -22,7 +22,6 @@ export const DEFAULT_SETTINGS = {
   showFreeHours: false,
   swipeDays: true,
   lessonReminders: false,
-  devNotifications: true,
 };
 
 /** Loads saved target (class or teacher) and group selections safely. */
@@ -119,10 +118,6 @@ export async function getAppSettings() {
           ? DEFAULT_SETTINGS.swipeDays
           : Boolean(parsed.swipeDays),
       lessonReminders: Boolean(parsed?.lessonReminders),
-      devNotifications:
-        parsed?.devNotifications === undefined
-          ? DEFAULT_SETTINGS.devNotifications
-          : Boolean(parsed.devNotifications),
     };
   } catch {
     return DEFAULT_SETTINGS;
