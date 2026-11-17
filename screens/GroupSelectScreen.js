@@ -11,7 +11,8 @@ import { RADII, SPACING } from "../theme";
 import { extractGroupOptions } from "../utils/groups";
 import { getSavedSelection, saveSelectedGroups } from "../utils/storage";
 
-const GroupSelectScreen = ({ navigation }) => {
+const GroupSelectScreen = ({ navigation, route }) => {
+  const isOnboarding = Boolean(route?.params?.onboarding);
   const { colors } = useSettings();
   const [classLabel, setClassLabel] = useState(null);
   const [choices, setChoices] = useState([]);
@@ -75,10 +76,14 @@ const GroupSelectScreen = ({ navigation }) => {
     setSaveError(null);
     try {
       await saveSelectedGroups(finalGroups);
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "Timetable" }],
-      });
+      if (isOnboarding) {
+        navigation.navigate("OnboardingSetup");
+      } else {
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Timetable" }],
+        });
+      }
     } catch (err) {
       setSaveError(err.message || "Nepodařilo se uložit vybrané skupiny.");
     }

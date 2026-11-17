@@ -115,7 +115,8 @@ const OptionRow = React.memo(function OptionRow({
   );
 });
 
-const SelectScreen = ({ navigation }) => {
+const SelectScreen = ({ navigation, route }) => {
+  const isOnboarding = Boolean(route?.params?.onboarding);
   const { settings, colors } = useSettings();
   const listFade = useRef(new Animated.Value(1)).current;
   const [kind, setKind] = useState("class");
@@ -205,12 +206,16 @@ const SelectScreen = ({ navigation }) => {
     try {
       await saveSelectedTarget(kind, selectedOption.value, selectedOption.label);
       if (kind === "teacher") {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Timetable" }],
-        });
+        if (isOnboarding) {
+          navigation.navigate("OnboardingSetup");
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Timetable" }],
+          });
+        }
       } else {
-        navigation.navigate("GroupSelect");
+        navigation.navigate("GroupSelect", { onboarding: isOnboarding });
       }
     } catch (err) {
       setSaveError(err.message || "Nepodařilo se uložit výběr.");

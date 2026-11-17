@@ -9,6 +9,7 @@ import HomeScreen from "../screens/HomeScreen";
 import SelectScreen from "../screens/SelectScreen";
 import TimetableScreen from "../screens/TimetableScreen";
 import GroupSelectScreen from "../screens/GroupSelectScreen";
+import OnboardingSetupScreen from "../screens/OnboardingSetupScreen";
 import SettingsScreen from "../screens/SettingsScreen";
 import { RADII, SPACING } from "../theme";
 
@@ -53,6 +54,11 @@ const TimetableNavigator = () => {
         name="GroupSelect"
         component={GroupSelectScreen}
         options={{ title: "Výběr skupin" }}
+      />
+      <Stack.Screen
+        name="OnboardingSetup"
+        component={OnboardingSetupScreen}
+        options={{ title: "Nastavení aplikace" }}
       />
       <Stack.Screen
         name="Timetable"
