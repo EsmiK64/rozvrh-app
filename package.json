@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "announcement": "node scripts/announcement.mjs",
+    "update:preview": "eas update --branch preview",
+    "update:production": "eas update --branch production"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -15,6 +18,7 @@
     "expo": "^58.0.26",
     "expo-notifications": "~58.1.9",
     "expo-status-bar": "~58.0.5",
+    "expo-updates": "~58.0.22",
     "express": "^4.18.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",

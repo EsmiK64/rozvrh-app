@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import * as Updates from "expo-updates";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { bakalariClient } from "../api/client";
 import { ExpressivePressable } from "../components/ExpressivePressable";
@@ -23,6 +24,7 @@ const SettingsScreen = ({ navigation }) => {
     settings.defaultView
   );
   const [cacheCleared, setCacheCleared] = useState(false);
+  const [updateStatus, setUpdateStatus] = useState(null);
 
   useEffect(() => {
     setLocalTheme(settings.themeMode);
@@ -59,6 +61,26 @@ const SettingsScreen = ({ navigation }) => {
       index: 0,
       routes: [{ name: "Home" }],
     });
+  };
+
+  const handleCheckUpdate = async () => {
+    if (!Updates.isEnabled) {
+      setUpdateStatus("Dostupné jen v samostatném buildu");
+      return;
+    }
+    setUpdateStatus("Kontroluji aktualizace...");
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) {
+        setUpdateStatus("✓ Aplikace je aktuální");
+        return;
+      }
+      setUpdateStatus("Stahuji aktualizaci...");
+      await Updates.fetchUpdateAsync();
+      await Updates.reloadAsync();
+    } catch {
+      setUpdateStatus("Nepodařilo se zkontrolovat aktualizace");
+    }
   };
 
   const handleReportIssue = () => {
@@ -130,12 +152,8 @@ const SettingsScreen = ({ navigation }) => {
           </Text>
           <NotificationControls
             lessonReminders={settings.lessonReminders}
-            devNotifications={settings.devNotifications}
             onLessonRemindersChange={(val) =>
               updateSetting("lessonReminders", val)
-            }
-            onDevNotificationsChange={(val) =>
-              updateSetting("devNotifications", val)
             }
           />
         </View>
@@ -189,6 +207,21 @@ const SettingsScreen = ({ navigation }) => {
             >
               <Text style={[styles.actionButtonText, { color: colors.text }]}>
                 Spustit úvodního průvodce znovu
+              </Text>
+            </ExpressivePressable>
+
+            <ExpressivePressable
+              style={[
+                styles.actionButton,
+                {
+                  backgroundColor: colors.surfaceMuted,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={handleCheckUpdate}
+            >
+              <Text style={[styles.actionButtonText, { color: colors.text }]}>
+                {updateStatus || "Zkontrolovat aktualizace (OTA)"}
               </Text>
             </ExpressivePressable>
           </View>
