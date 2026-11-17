@@ -8,6 +8,46 @@ export function parseStartMinutes(lessonTime) {
   return Number(match[1]) * 60 + Number(match[2]);
 }
 
+/** Parses start and end minutes from a "HH:MM - HH:MM" string. */
+export function parseTimeRangeMinutes(lessonTime) {
+  if (!lessonTime || typeof lessonTime !== "string") return null;
+  const match = lessonTime.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  return {
+    start: Number(match[1]) * 60 + Number(match[2]),
+    end: Number(match[3]) * 60 + Number(match[4]),
+  };
+}
+
+/** Returns true if a normalized Bakalari day matches today's calendar date. */
+export function isDayToday(day, now = new Date()) {
+  if (!day?.date) return false;
+  const d = now.getDate();
+  const m = now.getMonth() + 1;
+  const unpadded = `${d}.${m}.`;
+  const padded = `${String(d).padStart(2, "0")}.${String(m).padStart(2, "0")}.`;
+  return day.date === unpadded || day.date === padded;
+}
+
+/**
+ * Finds the chronological insertion index (0..lessons.length) for a current-time
+ * divider in a sorted day's lesson list, or -1 if the day has no timed lessons.
+ */
+export function getCurrentTimeInsertIndex(lessons = [], now = new Date()) {
+  const ranges = lessons.map((l) => parseTimeRangeMinutes(l.lessonTime));
+  if (!ranges.some(Boolean)) return -1;
+
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  for (let i = 0; i < ranges.length; i += 1) {
+    const range = ranges[i];
+    if (!range) continue;
+    if (nowMinutes < range.end) {
+      return nowMinutes >= range.start ? i + 1 : i;
+    }
+  }
+  return lessons.length;
+}
+
 /** Merges teacher lessons and guards chronologically by start time. */
 export function mergeDayTimeline(lessons = [], guards = []) {
   return [...lessons, ...guards].sort(

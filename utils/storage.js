@@ -6,6 +6,9 @@ const KEYS = {
   CLASS_LABEL: "selectedClassLabel",
   GROUPS: "groupsData",
   SETTINGS: "appSettings",
+  SEEN_ANNOUNCEMENT: "seenAnnouncementId",
+  DISMISSED_ANNOUNCEMENT: "dismissedAnnouncementId",
+  ONBOARDING_COMPLETED: "onboardingCompleted",
 };
 
 export const DEFAULT_SETTINGS = {
@@ -18,6 +21,8 @@ export const DEFAULT_SETTINGS = {
   autoNextWeek: false,
   showFreeHours: false,
   swipeDays: true,
+  lessonReminders: false,
+  devNotifications: true,
 };
 
 /** Loads saved target (class or teacher) and group selections safely. */
@@ -113,6 +118,11 @@ export async function getAppSettings() {
         parsed?.swipeDays === undefined
           ? DEFAULT_SETTINGS.swipeDays
           : Boolean(parsed.swipeDays),
+      lessonReminders: Boolean(parsed?.lessonReminders),
+      devNotifications:
+        parsed?.devNotifications === undefined
+          ? DEFAULT_SETTINGS.devNotifications
+          : Boolean(parsed.devNotifications),
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -122,4 +132,32 @@ export async function getAppSettings() {
 /** Persists user preferences as JSON. */
 export async function saveAppSettings(settings) {
   await AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
+}
+
+export async function getAnnouncementState() {
+  const [seenId, dismissedId] = await Promise.all([
+    AsyncStorage.getItem(KEYS.SEEN_ANNOUNCEMENT),
+    AsyncStorage.getItem(KEYS.DISMISSED_ANNOUNCEMENT),
+  ]);
+  return { seenId, dismissedId };
+}
+
+export async function markAnnouncementSeen(id) {
+  await AsyncStorage.setItem(KEYS.SEEN_ANNOUNCEMENT, String(id));
+}
+
+export async function dismissAnnouncement(id) {
+  await AsyncStorage.setItem(KEYS.DISMISSED_ANNOUNCEMENT, String(id));
+}
+
+export async function getOnboardingCompleted() {
+  const val = await AsyncStorage.getItem(KEYS.ONBOARDING_COMPLETED);
+  return val === "true";
+}
+
+export async function setOnboardingCompleted(completed) {
+  await AsyncStorage.setItem(
+    KEYS.ONBOARDING_COMPLETED,
+    completed ? "true" : "false"
+  );
 }

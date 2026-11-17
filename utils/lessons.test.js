@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  getCurrentTimeInsertIndex,
   insertFreeHours,
+  isDayToday,
   mergeDayTimeline,
   shouldDefaultToNextWeek,
 } from "./lessons.js";
@@ -66,5 +68,38 @@ test("insertFreeHours keeps pauseGuard in chronological position instead of movi
   assert.deepEqual(
     result.map((item) => item.type),
     ["atom", "free", "pauseGuard", "atom"]
+  );
+});
+
+test("isDayToday matches padded and unpadded dates", () => {
+  const tuesday = new Date("2026-11-17T10:00:00");
+  assert.equal(isDayToday({ date: "17.11." }, tuesday), true);
+  assert.equal(isDayToday({ date: "18.11." }, tuesday), false);
+
+  const singleDigit = new Date("2026-03-05T10:00:00");
+  assert.equal(isDayToday({ date: "5.3." }, singleDigit), true);
+  assert.equal(isDayToday({ date: "05.03." }, singleDigit), true);
+});
+
+test("getCurrentTimeInsertIndex places divider before, after active, or at end", () => {
+  const lessons = [
+    { lessonTime: "8:00 - 8:45" },
+    { lessonTime: "8:55 - 9:40" },
+  ];
+  assert.equal(
+    getCurrentTimeInsertIndex(lessons, new Date("2026-11-17T07:50:00")),
+    0
+  );
+  assert.equal(
+    getCurrentTimeInsertIndex(lessons, new Date("2026-11-17T08:20:00")),
+    1
+  );
+  assert.equal(
+    getCurrentTimeInsertIndex(lessons, new Date("2026-11-17T08:50:00")),
+    1
+  );
+  assert.equal(
+    getCurrentTimeInsertIndex(lessons, new Date("2026-11-17T10:00:00")),
+    2
   );
 });
