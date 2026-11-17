@@ -21,9 +21,8 @@ const TimetableNavigator = () => {
     <Stack.Navigator
       initialRouteName="Home"
       screenOptions={{
-        ...(settings.lowAnimations
-          ? { animation: "none" }
-          : TransitionPresets.SlideFromRightIOS),
+        ...TransitionPresets.SlideFromRightIOS,
+        animationEnabled: !settings.lowAnimations,
         headerStyle: {
           backgroundColor: colors.surface,
           elevation: 0,
