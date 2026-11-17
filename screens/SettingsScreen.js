@@ -11,11 +11,7 @@ import {
 } from "../components/SettingsSections";
 import { useSettings } from "../context/SettingsContext";
 import { RADII, SPACING } from "../theme";
-import {
-  SUPPORT_EMAIL,
-  openErrorEmail,
-  openGithubIssue,
-} from "../utils/reporting";
+import { openErrorEmail, openGithubIssue } from "../utils/reporting";
 import { setOnboardingCompleted } from "../utils/storage";
 
 const SettingsScreen = ({ navigation }) => {
@@ -251,7 +247,7 @@ const SettingsScreen = ({ navigation }) => {
               onPress={() => openErrorEmail()}
             >
               <Text style={[styles.actionButtonText, { color: colors.text }]}>
-                Napsat e-mail ({SUPPORT_EMAIL})
+                Napsat e-mail
               </Text>
             </ExpressivePressable>
           </View>
