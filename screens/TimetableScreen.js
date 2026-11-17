@@ -182,9 +182,22 @@ const TimetableScreen = ({ navigation }) => {
     []
   );
 
+  const targetInfoRef = useRef(targetInfo);
+  targetInfoRef.current = targetInfo;
+
   const loadTimetable = useCallback(
     async ({ forceRefresh = false } = {}) => {
       const cached = !forceRefresh ? timetablesByTermRef.current[term] : undefined;
+      if (cached && targetInfoRef.current.targetId) {
+        setSelectedDayIdx((prev) =>
+          prev !== null && prev >= 0 && prev < cached.days.length
+            ? prev
+            : findDefaultDayIndex(cached.days)
+        );
+        setLoading(false);
+        return;
+      }
+
       if (forceRefresh) {
         setRefreshing(true);
       } else if (!cached) {
