@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -16,14 +17,26 @@ import { SlidingTabs } from "../components/SlidingTabs";
 import { EmptyView, ErrorView, LoadingView } from "../components/StateViews";
 import { TimetableGrid } from "../components/TimetableGrid";
 import { useSettings } from "../context/SettingsContext";
+import {
+  sendDevAnnouncementNotification,
+  syncLessonReminders,
+} from "../services/notificationService";
 import { RADII, SPACING } from "../theme";
+import { fetchActiveAnnouncement } from "../utils/announcements";
 import { filterLessonsByGroups } from "../utils/groups";
 import {
+  getCurrentTimeInsertIndex,
   insertFreeHours,
+  isDayToday,
   mergeDayTimeline,
   shouldDefaultToNextWeek,
 } from "../utils/lessons";
-import { getSavedSelection } from "../utils/storage";
+import {
+  dismissAnnouncement,
+  getAnnouncementState,
+  getSavedSelection,
+  markAnnouncementSeen,
+} from "../utils/storage";
 
 const TERMS = [
   { key: "actual", label: "Tento týden" },
@@ -53,12 +66,31 @@ function findDefaultDayIndex(days) {
   return weekdayIdx >= 0 ? weekdayIdx : 0;
 }
 
+function formatClockTime(date) {
+  const h = String(date.getHours()).padStart(2, "0");
+  const m = String(date.getMinutes()).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function CurrentTimeLine({ timeLabel }) {
+  return (
+    <View style={styles.timeLineRow}>
+      <View style={styles.timeLineBadge}>
+        <Text style={styles.timeLineBadgeText}>{timeLabel}</Text>
+      </View>
+      <View style={styles.timeLineDot} />
+      <View style={styles.timeLineBar} />
+    </View>
+  );
+}
+
 const DayLessonsList = React.memo(function DayLessonsList({
   day,
   term,
   colors,
   isTeacher,
   compact,
+  timeMarker,
 }) {
   if (day.dayOff) {
     return (
@@ -85,16 +117,44 @@ const DayLessonsList = React.memo(function DayLessonsList({
       </View>
     );
   }
-  return day.lessons.map((lesson, idx) => (
-    <LessonCard
-      key={`${term}-${day.label}-${lesson.lessonNumber}-${lesson.type}-${lesson.subjectAbbrev || idx}-${idx}`}
-      lesson={lesson}
-      index={idx}
-      isTeacher={isTeacher}
-      animateEntrance={false}
-      compact={compact}
-    />
-  ));
+
+  const markerIndex =
+    timeMarker && isDayToday(day, timeMarker.now)
+      ? getCurrentTimeInsertIndex(day.lessons, timeMarker.now)
+      : -1;
+
+  const items = [];
+  day.lessons.forEach((lesson, idx) => {
+    if (markerIndex === idx) {
+      items.push(
+        <CurrentTimeLine
+          key={`now-line-${day.label}`}
+          timeLabel={timeMarker.label}
+        />
+      );
+    }
+    items.push(
+      <LessonCard
+        key={`${term}-${day.label}-${lesson.lessonNumber}-${lesson.type}-${lesson.subjectAbbrev || idx}-${idx}`}
+        lesson={lesson}
+        index={idx}
+        isTeacher={isTeacher}
+        animateEntrance={false}
+        compact={compact}
+      />
+    );
+  });
+
+  if (markerIndex === day.lessons.length) {
+    items.push(
+      <CurrentTimeLine
+        key={`now-line-${day.label}`}
+        timeLabel={timeMarker.label}
+      />
+    );
+  }
+
+  return items;
 });
 
 const DayPage = React.memo(function DayPage({
@@ -104,6 +164,7 @@ const DayPage = React.memo(function DayPage({
   colors,
   isTeacher,
   compact,
+  timeMarker,
   refreshing,
   onRefresh,
 }) {
@@ -125,6 +186,7 @@ const DayPage = React.memo(function DayPage({
         colors={colors}
         isTeacher={isTeacher}
         compact={compact}
+        timeMarker={timeMarker}
       />
     </ScrollView>
   );
@@ -135,11 +197,11 @@ const TimetableScreen = ({ navigation }) => {
   const { width: windowWidth } = useWindowDimensions();
   const pagerRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
-  const [term, setTerm] = useState(() =>
-    shouldDefaultToNextWeek(new Date(), settings.autoNextWeek)
-      ? "next"
-      : "actual"
-  );
+  const initialTerm = shouldDefaultToNextWeek(new Date(), settings.autoNextWeek)
+    ? "next"
+    : "actual";
+  const [term, setTerm] = useState(initialTerm);
+  const [localTerm, setLocalTerm] = useState(initialTerm);
   const [targetInfo, setTargetInfo] = useState({
     targetKind: "class",
     targetId: null,
@@ -153,9 +215,48 @@ const TimetableScreen = ({ navigation }) => {
   const [showAllDays, setShowAllDays] = useState(
     settings.defaultView === "week"
   );
+  const [localShowAllDays, setLocalShowAllDays] = useState(
+    settings.defaultView === "week"
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [announcement, setAnnouncement] = useState(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [remote, state] = await Promise.all([
+        fetchActiveAnnouncement(),
+        getAnnouncementState(),
+      ]);
+      if (!active || !remote) return;
+      if (state.dismissedId !== remote.id) {
+        setAnnouncement(remote);
+      }
+      if (settings.devNotifications && state.seenId !== remote.id) {
+        await markAnnouncementSeen(remote.id);
+        await sendDevAnnouncementNotification(remote);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [settings.devNotifications]);
+
+  const timeMarker = useMemo(
+    () =>
+      term === "actual"
+        ? { now, label: formatClockTime(now) }
+        : null,
+    [now, term]
+  );
 
   const currentData = timetablesByTerm[term];
   const days = currentData?.days || [];
@@ -268,6 +369,30 @@ const TimetableScreen = ({ navigation }) => {
     loadTimetable();
   }, [loadTimetable]);
 
+  useEffect(() => {
+    const actualDays = timetablesByTerm.actual?.days;
+    if (!actualDays || !targetInfo.targetId) return;
+
+    const preparedDays = actualDays.map((day) => ({
+      ...day,
+      lessons:
+        targetInfo.targetKind === "teacher"
+          ? mergeDayTimeline(day.lessons, day.guards)
+          : filterLessonsByGroups(day.lessons, selectedGroups),
+    }));
+
+    syncLessonReminders(preparedDays, {
+      enabled: settings.lessonReminders,
+      isTeacher: targetInfo.targetKind === "teacher",
+    });
+  }, [
+    timetablesByTerm.actual,
+    targetInfo.targetId,
+    targetInfo.targetKind,
+    selectedGroups,
+    settings.lessonReminders,
+  ]);
+
   const filteredDays = useMemo(
     () =>
       days.map((day) => {
@@ -304,10 +429,23 @@ const TimetableScreen = ({ navigation }) => {
   const selectedDayIdxRef = useRef(selectedDayIdx);
   selectedDayIdxRef.current = selectedDayIdx;
 
+  const handleSelectTerm = useCallback((nextTerm) => {
+    setLocalTerm(nextTerm);
+    requestAnimationFrame(() => {
+      setTerm(nextTerm);
+    });
+  }, []);
+
   const handleSelectDay = useCallback(
     (index) => {
-      setShowAllDays(false);
+      setLocalShowAllDays(false);
       setSelectedDayIdx(index);
+      if (showAllDays) {
+        requestAnimationFrame(() => {
+          setShowAllDays(false);
+        });
+        return;
+      }
       if (settings.layoutMode === "cards" && pagerRef.current) {
         isProgrammaticScrollRef.current = true;
         try {
@@ -320,7 +458,7 @@ const TimetableScreen = ({ navigation }) => {
         }
       }
     },
-    [settings.layoutMode, settings.lowAnimations]
+    [settings.layoutMode, settings.lowAnimations, showAllDays]
   );
 
   const handlePagerScroll = useCallback(
@@ -372,6 +510,7 @@ const TimetableScreen = ({ navigation }) => {
         colors={colors}
         isTeacher={targetInfo.targetKind === "teacher"}
         compact={settings.compactMode}
+        timeMarker={timeMarker}
         refreshing={refreshing}
         onRefresh={handleRefresh}
       />
@@ -382,6 +521,7 @@ const TimetableScreen = ({ navigation }) => {
       colors,
       targetInfo.targetKind,
       settings.compactMode,
+      timeMarker,
       refreshing,
       handleRefresh,
     ]
@@ -401,12 +541,17 @@ const TimetableScreen = ({ navigation }) => {
     [visibleDayTabs]
   );
 
-  const selectedDayTabKey = showAllDays ? "all" : String(selectedDayIdx ?? 0);
+  const selectedDayTabKey = localShowAllDays
+    ? "all"
+    : String(selectedDayIdx ?? 0);
 
   const handleDayTabSelect = useCallback(
     (key) => {
       if (key === "all") {
-        setShowAllDays(true);
+        setLocalShowAllDays(true);
+        requestAnimationFrame(() => {
+          setShowAllDays(true);
+        });
         return;
       }
       handleSelectDay(Number(key));
@@ -438,8 +583,8 @@ const TimetableScreen = ({ navigation }) => {
             <SlidingTabs
               compact
               options={TERMS}
-              selectedKey={term}
-              onSelect={setTerm}
+              selectedKey={localTerm}
+              onSelect={handleSelectTerm}
             />
           </View>
           {targetInfo.targetKind === "class" ? (
@@ -462,6 +607,59 @@ const TimetableScreen = ({ navigation }) => {
           ) : null}
         </View>
       </View>
+
+      {announcement ? (
+        <View
+          style={[
+            styles.announcementBanner,
+            {
+              backgroundColor:
+                announcement.severity === "outage"
+                  ? colors.removedBg
+                  : colors.changedBg,
+              borderBottomColor:
+                announcement.severity === "outage"
+                  ? colors.removedBorder
+                  : colors.changedBorder,
+            },
+          ]}
+        >
+          <View style={styles.announcementTextWrap}>
+            <Text
+              style={[
+                styles.announcementTitle,
+                {
+                  color:
+                    announcement.severity === "outage"
+                      ? colors.removedText
+                      : colors.changedText,
+                },
+              ]}
+            >
+              {announcement.title}
+            </Text>
+            <Text
+              style={[
+                styles.announcementMessage,
+                { color: colors.textSecondary },
+              ]}
+            >
+              {announcement.message}
+            </Text>
+          </View>
+          <Pressable
+            onPress={() => {
+              dismissAnnouncement(announcement.id).catch(() => {});
+              setAnnouncement(null);
+            }}
+            style={styles.announcementDismiss}
+          >
+            <Text style={[styles.announcementDismissText, { color: colors.textMuted }]}>
+              ✕
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.mainContent}>
         {filteredDays.length === 0 ? (
@@ -508,6 +706,7 @@ const TimetableScreen = ({ navigation }) => {
                   colors={colors}
                   isTeacher={targetInfo.targetKind === "teacher"}
                   compact={settings.compactMode}
+                  timeMarker={timeMarker}
                 />
               </View>
             ))}
@@ -520,7 +719,7 @@ const TimetableScreen = ({ navigation }) => {
             pagingEnabled
             scrollEnabled={settings.swipeDays}
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => `${term}-${item.label}`}
+            keyExtractor={(_, index) => String(index)}
             initialScrollIndex={
               selectedDayIdx !== null && selectedDayIdx < filteredDays.length
                 ? selectedDayIdx
@@ -641,6 +840,61 @@ const styles = StyleSheet.create({
   },
   emptyDayText: {
     fontSize: 14,
+  },
+  timeLineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: SPACING.xs + 2,
+  },
+  timeLineBadge: {
+    backgroundColor: "#EF4444",
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 2,
+    borderRadius: RADII.pill,
+  },
+  timeLineBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+  timeLineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#EF4444",
+    marginLeft: -2,
+  },
+  timeLineBar: {
+    flex: 1,
+    height: 2,
+    backgroundColor: "#EF4444",
+    borderRadius: 999,
+  },
+  announcementBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    borderBottomWidth: 1,
+    gap: SPACING.sm,
+  },
+  announcementTextWrap: {
+    flex: 1,
+  },
+  announcementTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  announcementMessage: {
+    fontSize: 12,
+    marginTop: 1,
+  },
+  announcementDismiss: {
+    padding: SPACING.xs + 2,
+  },
+  announcementDismissText: {
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
 
