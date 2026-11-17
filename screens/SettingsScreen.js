@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import * as Updates from "expo-updates";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { bakalariClient } from "../api/client";
@@ -11,9 +11,12 @@ import {
 } from "../components/SettingsSections";
 import { useSettings } from "../context/SettingsContext";
 import { RADII, SPACING } from "../theme";
+import {
+  SUPPORT_EMAIL,
+  openErrorEmail,
+  openGithubIssue,
+} from "../utils/reporting";
 import { setOnboardingCompleted } from "../utils/storage";
-
-const GITHUB_ISSUES_URL = "https://github.com/EsmiK64/rozvrh-app/issues/new";
 
 const SettingsScreen = ({ navigation }) => {
   const { settings, colors, updateSetting } = useSettings();
@@ -81,12 +84,6 @@ const SettingsScreen = ({ navigation }) => {
     } catch {
       setUpdateStatus("Nepodařilo se zkontrolovat aktualizace");
     }
-  };
-
-  const handleReportIssue = () => {
-    Linking.openURL(GITHUB_ISSUES_URL).catch((err) =>
-      console.error("Failed to open GitHub issues URL:", err)
-    );
   };
 
   const cardStyle = [
@@ -232,16 +229,32 @@ const SettingsScreen = ({ navigation }) => {
             Zpětná vazba
           </Text>
           <Text style={[styles.sectionDesc, { color: colors.textSecondary }]}>
-            Narazili jste na chybu nebo máte nápad na vylepšení?
+            Narazili jste na chybu, výpadek nebo máte nápad na vylepšení?
           </Text>
-          <ExpressivePressable
-            style={[styles.primaryButton, { backgroundColor: colors.primary }]}
-            onPress={handleReportIssue}
-          >
-            <Text style={[styles.primaryButtonText, { color: colors.white }]}>
-              Nahlásit chybu na GitHubu
-            </Text>
-          </ExpressivePressable>
+          <View style={styles.actionStack}>
+            <ExpressivePressable
+              style={[styles.primaryButton, { backgroundColor: colors.primary }]}
+              onPress={() => openGithubIssue()}
+            >
+              <Text style={[styles.primaryButtonText, { color: colors.white }]}>
+                Nahlásit chybu na GitHubu
+              </Text>
+            </ExpressivePressable>
+            <ExpressivePressable
+              style={[
+                styles.actionButton,
+                {
+                  backgroundColor: colors.surfaceMuted,
+                  borderColor: colors.border,
+                },
+              ]}
+              onPress={() => openErrorEmail()}
+            >
+              <Text style={[styles.actionButtonText, { color: colors.text }]}>
+                Napsat e-mail ({SUPPORT_EMAIL})
+              </Text>
+            </ExpressivePressable>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>

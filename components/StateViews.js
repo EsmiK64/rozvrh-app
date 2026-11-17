@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useSettings } from "../context/SettingsContext";
 import { RADII, SPACING } from "../theme";
+import { openErrorEmail, openGithubIssue } from "../utils/reporting";
 
 export function LoadingView({ message = "Načítání..." }) {
   const { colors } = useSettings();
@@ -47,6 +48,36 @@ export function ErrorView({
           </Text>
         </Pressable>
       ) : null}
+      <View style={styles.reportRow}>
+        <Pressable
+          style={[
+            styles.reportButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+          onPress={() => openErrorEmail(message)}
+        >
+          <Text style={[styles.reportText, { color: colors.text }]}>
+            Nahlásit výpadek (E-mail)
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[
+            styles.reportButton,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+            },
+          ]}
+          onPress={() => openGithubIssue(message)}
+        >
+          <Text style={[styles.reportText, { color: colors.text }]}>
+            GitHub Issue
+          </Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -96,5 +127,22 @@ const styles = StyleSheet.create({
   retryText: {
     fontWeight: "600",
     fontSize: 15,
+  },
+  reportRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: SPACING.sm,
+    marginTop: SPACING.md,
+  },
+  reportButton: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+  },
+  reportText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
